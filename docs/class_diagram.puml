@@ -1,0 +1,167 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+abstract class BaseController {
+  # request: Request
+  # userId: int
+  # perPage: int
+  # responseFormat: string
+  # isAuthenticated: bool
+  + __construct(request: Request): void
+  + authorizeAction(ability: string): bool
+  + jsonResponse(data: array, status: int): JsonResponse
+  + validateInput(rules: array): array
+  + logActivity(action: string): void
+}
+
+class ProductController {
+  - productModel: Product
+  - categoryModel: Category
+  - cacheTtl: int
+  - uploadDisk: string
+  - maxImages: int
+  + index(request: Request): View
+  + show(id: int): View
+  + store(request: Request): RedirectResponse
+  + update(request: Request, id: int): RedirectResponse
+  + destroy(id: int): RedirectResponse
+}
+
+class OrderController {
+  - orderModel: Order
+  - cartModel: CartItem
+  - paymentModel: Payment
+  - taxRate: float
+  - defaultCurrency: string
+  + index(): View
+  + checkout(): View
+  + placeOrder(request: Request): RedirectResponse
+  + cancelOrder(id: int): RedirectResponse
+  + downloadInvoice(id: int): Response
+}
+
+class User {
+  + id: int
+  + name: string
+  + email: string
+  - password: string
+  + role: string
+  + isAdmin(): bool
+  + orders(): HasMany
+  + cartItems(): HasMany
+  + reviews(): HasMany
+  + updateProfile(data: array): bool
+}
+
+class Category {
+  + id: int
+  + name: string
+  + slug: string
+  + description: string
+  + is_active: bool
+  + products(): HasMany
+  + getActiveProducts(): Collection
+  + generateSlug(title: string): string
+  + toggleVisibility(): bool
+  + getProductsCount(): int
+}
+
+class Product {
+  + id: int
+  + category_id: int
+  + title: string
+  + price: float
+  + stock_quantity: int
+  + isInStock(qty: int): bool
+  + decreaseStock(qty: int): bool
+  + increaseStock(qty: int): bool
+  + category(): BelongsTo
+  + getFormattedPrice(): string
+}
+
+class CartItem {
+  + id: int
+  + user_id: int
+  + product_id: int
+  + quantity: int
+  + created_at: DateTime
+  + user(): BelongsTo
+  + product(): BelongsTo
+  + getSubtotal(): float
+  + incrementQty(amount: int): bool
+  + clearUserCart(userId: int): void
+}
+
+class Order {
+  + id: int
+  + user_id: int
+  + total_amount: float
+  + status: string
+  + shipping_address: string
+  + items(): HasMany
+  + payment(): HasOne
+  + user(): BelongsTo
+  + calculateTotal(): float
+  + markAsPaid(): bool
+}
+
+class OrderItem {
+  + id: int
+  + order_id: int
+  + product_id: int
+  + quantity: int
+  + unit_price: float
+  + order(): BelongsTo
+  + product(): BelongsTo
+  + getLineTotal(): float
+  + applyDiscount(percent: float): float
+  + createFromCartItem(item: CartItem): OrderItem
+}
+
+class Payment {
+  + id: int
+  + order_id: int
+  + transaction_id: string
+  + amount: float
+  + status: string
+  + order(): BelongsTo
+  + processGateway(): bool
+  + verifySignature(payload: array): bool
+  + refund(): bool
+  + isSuccessful(): bool
+}
+
+class Review {
+  + id: int
+  + user_id: int
+  + product_id: int
+  + rating: int
+  + comment: string
+  + user(): BelongsTo
+  + product(): BelongsTo
+  + isApproved(): bool
+  + approve(): bool
+  + getShortComment(length: int): string
+}
+
+BaseController <|-- ProductController
+BaseController <|-- OrderController
+
+Order "1" *-- "1..*" OrderItem : contains
+Category "1" o-- "0..*" Product : groups
+
+User "1" --> "0..*" Order : places
+User "1" --> "0..*" CartItem : owns
+User "1" --> "0..*" Review : writes
+Product "1" --> "0..*" CartItem : added to
+Product "1" --> "0..*" OrderItem : referenced in
+Product "1" --> "0..*" Review : receives
+Order "1" --> "0..1" Payment : paid via
+
+ProductController ..> Product : manages
+ProductController ..> Category : uses
+OrderController ..> Order : manages
+OrderController ..> CartItem : reads
+OrderController ..> Payment : initiates
+
+@enduml
